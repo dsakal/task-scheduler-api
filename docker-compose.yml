@@ -1,0 +1,9 @@
+services:
+  postgresql:
+    image: postgres
+    environment:
+      POSTGRES_USER: 'admin'
+      POSTGRES_PASSWORD: 'changemeinprod!'
+      POSTGRES_DB: 'testdb'
+    ports:
+      - "5432:5432"
