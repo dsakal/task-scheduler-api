@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @RestController
 public class TaskController {
@@ -33,13 +34,13 @@ public class TaskController {
     }
 
     @GetMapping("/tasks/filter/{numberOfTasks}")
-    public List<TaskDTO> getFilteredTasks(
+    public ResponseEntity<List<TaskDTO>> getFilteredTasks(
             @PathVariable Integer numberOfTasks,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestBody List<UserDTO> users) {
 
-        return taskService.filterTasks(numberOfTasks, startDate, endDate, users);
+        return new ResponseEntity<>(taskService.filterTasks(numberOfTasks, startDate, endDate, users), HttpStatus.OK);
     }
     /*@PostMapping("/tasks")
     public ResponseEntity<TaskDTO> createTask(@ModelAttribute TaskDTO taskDTO, @RequestParam("image") MultipartFile file) {
@@ -62,30 +63,38 @@ public class TaskController {
 
     @PutMapping("/tasks/{taskId}/images")
     public ResponseEntity<String> uploadImage(@PathVariable Long taskId, @RequestParam("image") MultipartFile imageFile){
-        try {
-            if (!Objects.requireNonNull(imageFile.getContentType()).startsWith("image/")) {
-                return new ResponseEntity<>("Only image files are allowed!", HttpStatus.BAD_REQUEST);
+        if (taskService.findTaskById(taskId).isPresent()){
+            try {
+                if (imageFile.isEmpty()){
+                    return new ResponseEntity<>("No image provided!", HttpStatus.BAD_REQUEST);
+                }
+                else if (!imageFile.getContentType().startsWith("image/")) {
+                    return new ResponseEntity<>("Only image files are allowed!", HttpStatus.BAD_REQUEST);
+                }
+                taskService.uploadImage(imageFile, taskId);
+                return new ResponseEntity<>("Image upload successful!", HttpStatus.OK);
+            }catch (IOException e){
+                logger.error("Failed to upload image!", e);
+                return new ResponseEntity<>("Image upload failed!", HttpStatus.INTERNAL_SERVER_ERROR);
             }
-            String newFileName = "TaskID_" + taskId.toString() + "__" + imageFile.getOriginalFilename();
-            taskService.uploadImage(imageFile, newFileName);
-            return new ResponseEntity<>("Image upload successful!", HttpStatus.OK);
-        }catch (IOException e){
-            logger.error("Failed to upload image!", e);
-            return new ResponseEntity<>("Image upload failed!", HttpStatus.INTERNAL_SERVER_ERROR);
         }
+        return new ResponseEntity<>("Task does not exist!", HttpStatus.BAD_REQUEST);
     }
 
     @PutMapping("/buckets/{bucketId}/tasks")
     public ResponseEntity<TaskDTO> insertTaskIntoBucket(@PathVariable Long bucketId, @RequestBody TaskDTO taskDTO) {
         if (bucketService.findById(bucketId).isPresent()){
             taskDTO.setBucket(bucketService.findById(bucketId).get());
+            return new ResponseEntity<>(taskService.createTask(taskDTO), HttpStatus.OK);
         }
-        return new ResponseEntity<>(taskService.createTask(taskDTO), HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
     @PutMapping("/tasks/{taskId}/users")
     public ResponseEntity<TaskDTO> addUsersToTask(@PathVariable Long taskId, @RequestBody List<UserDTO> userDTOs) {
-        return new ResponseEntity<>(taskService.addUsersToTask(taskId, userDTOs), HttpStatus.OK);
+        return taskService.addUsersToTask(taskId, userDTOs)
+                .map(taskDTO -> new ResponseEntity<>(taskDTO, HttpStatus.OK))
+                .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
     @DeleteMapping("/tasks/{taskId}")
     public void delete(@PathVariable Long taskId){

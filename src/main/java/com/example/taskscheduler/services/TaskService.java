@@ -13,9 +13,9 @@ public interface TaskService {
     List<TaskDTO> findAll();
     Optional<TaskDTO> findTaskById(Long taskId);
     TaskDTO createTask(TaskDTO taskDTO);
-    TaskDTO addUsersToTask(Long taskId, List<UserDTO> userDTOs);
+    Optional<TaskDTO> addUsersToTask(Long taskId, List<UserDTO> userDTOs);
     void deleteById(Long id);
-    void uploadImage(MultipartFile image, String imageName) throws IOException;
+    void uploadImage(MultipartFile image, Long taskId) throws IOException;
     List<TaskDTO> findAllByBucketId(Long id);
     List<TaskDTO> findAllByDueDate(LocalDate dueDate);
     List<TaskDTO> filterTasks(Integer numberOfTasks, LocalDate startDate, LocalDate endDate, List<UserDTO> users);
